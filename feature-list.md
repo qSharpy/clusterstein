@@ -1,0 +1,5 @@
+- [ ] Auto join network when you are in the same network (VPN)
+- [ ] Join from anywhere (azure, aws, digital ocean, gcp, local, etc)
+- [ ] Join cluster at os system install (ignition file or similar)
+- [ ] Autocert
+- [ ] Have both internal and external websites
