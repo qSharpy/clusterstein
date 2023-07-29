@@ -1,0 +1,8 @@
+config:
+  azure-native:location: WestEurope
+  clusterstein:adminUsername: pulumiuser
+  clusterstein:osImage: Debian:debian-11:11:latest
+  clusterstein:servicePort: "80"
+  clusterstein:sshPublicKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC+d79NuWyKmUgXK+L3+3pAAOMe3VM9CXU/lyAPBSG582E1JTMF0CqlFCogJ7M908IT6pijTE2MkSCfWszI+4SPfutLFSgKp/6s87ZDqPMdTxPjwDcNn+wOOPC4UgACxcH4hG+p/B1+ioEHTHX2slT1DvTrwZ8Y32HHhca3+1Egfvx69fycZrtirWGwwQRaZ1f9Ge81m2rab4XVi6UKEqJ+g39G8A0VCsMU7t3dWhSX6YcaBWPiE905fuTdRuffu3q3V7g7rbWT6kfk3Xmb2QZsoexFd+2c0Q5oOr5gx0Ru2lCrcLIRj51+rDzMc1HcBvDCs0ZmrY8vmAY37QDUqY/BmsAlOuwwdu9YJXloI90F3WY3iEI0i+UDXYbBWHG3OtjnTUmiVe3s6a7YNh0vGEw6bxmQ5MtS+PcZbv56ikAGXV0nOjUk6n8qqbXZFKUTVIqsU8pw0fnSfV9U4lB7Q8upYd1eJkXh/9YYZ9ju0M0siFaCRPiCWkTVYW3L7mtyz2M= bogdan@192-168-0-139.rdsnet.ro
+  clusterstein:vmName: azure-vm
+  clusterstein:vmSize: Standard_B1s

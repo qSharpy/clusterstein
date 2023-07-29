@@ -1,0 +1,139 @@
+name: clusterstein
+runtime: yaml
+description: A Pulumi YAML program to deploy a virtual machine on Azure
+# Import the program's configuration settings.
+config:
+  adminUsername:
+    type: string
+    default: pulumiuser
+  osImage:
+    type: string
+    default: Debian:debian-11:11:latest
+  servicePort:
+    type: string
+    default: "80"
+  sshPublicKey:
+    type: string
+  vmName:
+    type: string
+    default: my-server
+  vmSize:
+    type: string
+    default: Standard_A1_v2
+# Export the VM's hostname, public IP address, and HTTP URL.
+outputs:
+  hostname: ${address.dnsSettings.fqdn}
+  ip: ${address.ipAddress}
+  url: http://${address.dnsSettings.fqdn}:${servicePort}
+resources:
+  # Create a virtual network.
+  network:
+    properties:
+      addressSpace:
+        addressPrefixes:
+          - 10.0.0.0/16
+      resourceGroupName: ${resource-group.name}
+      subnets:
+        - addressPrefix: 10.0.1.0/24
+          name: default
+    type: azure-native:network:VirtualNetwork
+  # Create a network interface with the virtual network, IP address, and security group.
+  network-interface:
+    properties:
+      ipConfigurations:
+        - name: ${vmName}-ipconfiguration
+          privateIPAllocationMethod: Dynamic
+          publicIPAddress:
+            id: ${public-ip.id}
+          subnet:
+            id: ${network.subnets[0].id}
+      networkSecurityGroup:
+        id: ${security-group.id}
+      resourceGroupName: ${resource-group.name}
+    type: azure-native:network:NetworkInterface
+  # Create a public IP address for the VM.
+  public-ip:
+    properties:
+      dnsSettings:
+        domainNameLabel: ${dnsName}
+      publicIPAllocationMethod: Dynamic
+      resourceGroupName: ${resource-group.name}
+    type: azure-native:network:PublicIPAddress
+  # Use a random string to give the VM a unique DNS name.
+  random-string:
+    properties:
+      length: 8
+      special: false
+      upper: false
+    type: random:RandomString
+  # Create a resource group.
+  resource-group:
+    type: azure-native:resources:ResourceGroup
+  # Create a security group allowing inbound access over ports 80 (for HTTP) and 22 (for SSH).
+  security-group:
+    properties:
+      resourceGroupName: ${resource-group.name}
+      securityRules:
+        - access: Allow
+          destinationAddressPrefix: "*"
+          destinationPortRanges:
+            - ${servicePort}
+            - "22"
+          direction: Inbound
+          name: ${vmName}-securityrule
+          priority: 1000
+          protocol: Tcp
+          sourceAddressPrefix: "*"
+          sourcePortRange: "*"
+    type: azure-native:network:NetworkSecurityGroup
+  # Create the virtual machine.
+  vm:
+    properties:
+      hardwareProfile:
+        vmSize: ${vmSize}
+      networkProfile:
+        networkInterfaces:
+          - id: ${network-interface.id}
+            primary: true
+      osProfile:
+        adminUsername: ${adminUsername}
+        computerName: ${vmName}
+        customData: ${initScript}
+        linuxConfiguration:
+          disablePasswordAuthentication: true
+          ssh:
+            publicKeys:
+              - keyData: ${sshPublicKey}
+                path: /home/${adminUsername}/.ssh/authorized_keys
+      resourceGroupName: ${resource-group.name}
+      storageProfile:
+        imageReference:
+          offer: ${osImageOffer}
+          publisher: ${osImagePublisher}
+          sku: ${osImageSku}
+          version: ${osImageVersion}
+        osDisk:
+          createOption: FromImage
+          name: ${vmName}-osdisk
+    type: azure-native:compute:VirtualMachine
+variables:
+  # Once the machine is created, fetch its IP address and DNS hostname.
+  address:
+    fn::invoke:
+      arguments:
+        expand: ${vm.id}
+        publicIpAddressName: ${public-ip.name}
+        resourceGroupName: ${resource-group.name}
+      function: azure-native:network:getPublicIPAddress
+  dnsName: ${vmName}-${random-string.result}
+  # Define a script to be run when the VM starts up.
+  initScript:
+    fn::toBase64: "#!/bin/bash\necho '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <title>Hello, world!</title>\n</head>\n<body>\n    <h1>Hello, world! \U0001F44B</h1>\n    <p>Deployed with \U0001F49C by <a href=\"https://pulumi.com/\">Pulumi</a>.</p>\n</body>\n</html>' > index.html\nsudo python3 -m http.server ${servicePort} &\n"
+  osImageArgs:
+    fn::split:
+      - ":"
+      - ${osImage}
+  osImageOffer: ${osImageArgs[1]}
+  osImagePublisher: ${osImageArgs[0]}
+  osImageSku: ${osImageArgs[2]}
+  osImageVersion: ${osImageArgs[3]}
