@@ -21,10 +21,9 @@ config:
     type: string
     default: Standard_A1_v2
 # Export the VM's hostname, public IP address, and HTTP URL.
-outputs:
-  hostname: ${address.dnsSettings.fqdn}
-  ip: ${address.ipAddress}
-  url: http://${address.dnsSettings.fqdn}:${servicePort}
+# outputs:
+#   hostname: ${address.dnsSettings.fqdn}
+#   url: http://${address.dnsSettings.fqdn}:${servicePort}
 resources:
   # Create a virtual network.
   network:
@@ -43,22 +42,12 @@ resources:
       ipConfigurations:
         - name: ${vmName}-ipconfiguration
           privateIPAllocationMethod: Dynamic
-          publicIPAddress:
-            id: ${public-ip.id}
           subnet:
             id: ${network.subnets[0].id}
       networkSecurityGroup:
         id: ${security-group.id}
       resourceGroupName: ${resource-group.name}
     type: azure-native:network:NetworkInterface
-  # Create a public IP address for the VM.
-  public-ip:
-    properties:
-      dnsSettings:
-        domainNameLabel: ${dnsName}
-      publicIPAllocationMethod: Dynamic
-      resourceGroupName: ${resource-group.name}
-    type: azure-native:network:PublicIPAddress
   # Use a random string to give the VM a unique DNS name.
   random-string:
     properties:
@@ -77,7 +66,7 @@ resources:
         - access: Allow
           destinationAddressPrefix: "*"
           destinationPortRanges:
-            - ${servicePort}
+            - "80"
             - "22"
           direction: Inbound
           name: ${vmName}-securityrule
@@ -117,14 +106,7 @@ resources:
           name: ${vmName}-osdisk
     type: azure-native:compute:VirtualMachine
 variables:
-  # Once the machine is created, fetch its IP address and DNS hostname.
-  address:
-    fn::invoke:
-      arguments:
-        expand: ${vm.id}
-        publicIpAddressName: ${public-ip.name}
-        resourceGroupName: ${resource-group.name}
-      function: azure-native:network:getPublicIPAddress
+  # Once the machine is created, fetch its DNS hostname.
   dnsName: ${vmName}-${random-string.result}
   # Define a script to be run when the VM starts up.
   initScript:
