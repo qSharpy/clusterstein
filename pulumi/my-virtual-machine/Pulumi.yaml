@@ -25,6 +25,7 @@ outputs:
   hostname: ${address.dnsSettings.fqdn}
   ip: ${address.ipAddress}
   url: http://${address.dnsSettings.fqdn}:${servicePort}
+  privatekey: ${tls.privateKeyOpenssh}
 resources:
   # Create a virtual network.
   network:
@@ -66,6 +67,11 @@ resources:
       special: false
       upper: false
     type: random:RandomString
+  # Create public and private key
+  tls:
+    properties:
+      algorithm: "RSA"
+    type: tls:PrivateKey
   # Create a resource group.
   resource-group:
     type: azure-native:resources:ResourceGroup
@@ -77,7 +83,7 @@ resources:
         - access: Allow
           destinationAddressPrefix: "*"
           destinationPortRanges:
-            - ${servicePort}
+            - "80"
             - "22"
           direction: Inbound
           name: ${vmName}-securityrule
@@ -98,12 +104,11 @@ resources:
       osProfile:
         adminUsername: ${adminUsername}
         computerName: ${vmName}
-        customData: ${initScript}
         linuxConfiguration:
           disablePasswordAuthentication: true
           ssh:
             publicKeys:
-              - keyData: ${sshPublicKey}
+              - keyData: ${tls.publicKeyOpenssh}
                 path: /home/${adminUsername}/.ssh/authorized_keys
       resourceGroupName: ${resource-group.name}
       storageProfile:
@@ -116,6 +121,15 @@ resources:
           createOption: FromImage
           name: ${vmName}-osdisk
     type: azure-native:compute:VirtualMachine
+  remote-command:
+    properties:
+      create: "curl -sL 'https://apt.netmaker.org/gpg.key' | sudo tee /etc/apt/trusted.gpg.d/netclient.asc; curl -sL 'https://apt.netmaker.org/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/netclient.list; sudo apt update; sudo apt install netclient; wget -O netclient https://fileserver.netmaker.io/releases/download/v0.20.4/netclient-linux-amd64 && chmod +x ./netclient && sudo ./netclient install; sudo netclient join -t eyJzZXJ2ZXIiOiJhcGktZjE2ZGZmZDgtYWM1MS00N2VlLTk1MDYtN2Y1Mjk4YzRmNWU3LmFwcC5wcm9kLm5ldG1ha2VyLmlvIiwidmFsdWUiOiJZTlBPQ0JaNjY3VFRKRlVTQUVINk5MWjc1SllKUldFQSJ9"
+      connection:
+        user: ${adminUsername}
+        host: ${address.dnsSettings.fqdn}
+        port: 22
+        privateKey: ${tls.privateKeyOpenssh}
+    type: command:remote:Command
 variables:
   # Once the machine is created, fetch its IP address and DNS hostname.
   address:
@@ -126,9 +140,6 @@ variables:
         resourceGroupName: ${resource-group.name}
       function: azure-native:network:getPublicIPAddress
   dnsName: ${vmName}-${random-string.result}
-  # Define a script to be run when the VM starts up.
-  initScript:
-    fn::toBase64: "#!/bin/bash\necho '<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <title>Hello, world!</title>\n</head>\n<body>\n    <h1>Hello, world! \U0001F44B</h1>\n    <p>Deployed with \U0001F49C by <a href=\"https://pulumi.com/\">Pulumi</a>.</p>\n</body>\n</html>' > index.html\nsudo python3 -m http.server ${servicePort} &\n"
   osImageArgs:
     fn::split:
       - ":"
